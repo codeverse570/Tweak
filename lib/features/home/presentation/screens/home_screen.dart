@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:skillyr/core/constants/app_colors.dart';
 import 'package:skillyr/features/home/presentation/widgets/bottom_nav_bar.dart';
-import 'package:skillyr/features/home/presentation/widgets/games_section.dart';
 import 'package:skillyr/features/home/presentation/widgets/hero_section.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
- 
+
   @override
   State<HomeScreen> createState() => _HomeScreenState();
 }
- 
+
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedNav = 0;
- 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -21,18 +20,11 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Expanded(
+            // Hero section takes all remaining space above nav
+            const Expanded(
               child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    HeroSection(),
-                    const SizedBox(height: 4),
-                    GamesSection(),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                physics: BouncingScrollPhysics(),
+                child: HeroSection(),
               ),
             ),
             BottomNavBar(
