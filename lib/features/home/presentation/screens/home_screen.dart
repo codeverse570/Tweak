@@ -20,12 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Hero section takes all remaining space above nav
             const Expanded(
-              child: SingleChildScrollView(
-                physics: BouncingScrollPhysics(),
-                child: HeroSection(),
-              ),
+              child: HeroSection(),   // no scroll wrapper
             ),
             BottomNavBar(
               selectedIndex: _selectedNav,
