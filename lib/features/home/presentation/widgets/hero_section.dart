@@ -6,6 +6,8 @@ import 'package:skillyr/features/home/presentation/widgets/bottom_section.dart';
 import 'package:skillyr/features/home/presentation/widgets/leaderboard_panel.dart';
 import 'package:skillyr/features/home/presentation/widgets/rule_panel.dart';
 import 'package:skillyr/features/matchmaking/presentation/screens/matchmaking_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:skillyr/features/auth/presentation/providers/auth_provider.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Responsive scale helper
@@ -155,6 +157,15 @@ class _HeaderRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = scale;
+    final auth = context.watch<AuthProvider>();
+    final userName = auth.displayName ?? 'Player';
+
+    final initials = userName
+        .split(' ')
+        .where((e) => e.isNotEmpty)
+        .take(2)
+        .map((e) => e[0].toUpperCase())
+        .join();
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -185,7 +196,7 @@ class _HeaderRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Roxane Harley',
+                   userName,
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13 * s,
