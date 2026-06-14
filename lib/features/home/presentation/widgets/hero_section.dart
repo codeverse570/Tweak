@@ -6,8 +6,10 @@ import 'package:skillyr/features/home/presentation/widgets/bottom_section.dart';
 import 'package:skillyr/features/home/presentation/widgets/leaderboard_panel.dart';
 import 'package:skillyr/features/home/presentation/widgets/rule_panel.dart';
 import 'package:skillyr/features/matchmaking/presentation/screens/matchmaking_screen.dart';
-import 'package:provider/provider.dart';
-import 'package:skillyr/features/auth/presentation/providers/auth_provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:skillyr/features/user/presentation/providers/user_provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+// import 'package:skillyr/features/user/presentation/providers/user_providers.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Responsive scale helper
@@ -150,15 +152,28 @@ class _HeroSectionState extends State<HeroSection> {
 // ─────────────────────────────────────────────────────────────────────────────
 // _HeaderRow
 // ─────────────────────────────────────────────────────────────────────────────
-class _HeaderRow extends StatelessWidget {
+class _HeaderRow extends ConsumerWidget {
   final double scale;
   const _HeaderRow({required this.scale});
+  
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final s = scale;
-    final auth = context.watch<AuthProvider>();
-    final userName = auth.displayName ?? 'Player';
+
+    // ── User data from Supabase ──────────────────────────────────────────
+    final progressionAsync = ref.watch(userProgressionProvider);
+   final SupabaseClient _client;
+    final gems = progressionAsync.valueOrNull?.gems ?? 0;
+    final xp   = progressionAsync.valueOrNull?.experience ?? 0;
+   
+    // Display name from Supabase auth metadata
+    final supaUser = Supabase.instance.client.auth.currentUser;
+    final meta     = supaUser?.userMetadata ?? {};
+    final userName = (meta['full_name'] as String?) ??
+        (meta['name'] as String?) ??
+        supaUser?.email?.split('@').first ??
+        'Player';
 
     final initials = userName
         .split(' ')
@@ -166,10 +181,11 @@ class _HeaderRow extends StatelessWidget {
         .take(2)
         .map((e) => e[0].toUpperCase())
         .join();
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        // Avatar + name
+        // ── Avatar + name + gems badge ───────────────────────────────────
         Row(
           children: [
             Container(
@@ -183,7 +199,7 @@ class _HeaderRow extends StatelessWidget {
               ),
               alignment: Alignment.center,
               child: Text(
-                'RH',
+                initials.isEmpty ? '?' : initials,
                 style: TextStyle(
                   color: Colors.white,
                   fontSize: 14 * s,
@@ -196,7 +212,7 @@ class _HeaderRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                   userName,
+                  userName,
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 13 * s,
@@ -204,34 +220,22 @@ class _HeaderRow extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 3 * s),
-                Container(
-                  padding: EdgeInsets.symmetric(
-                      horizontal: 8 * s, vertical: 2 * s),
-                  decoration: BoxDecoration(
-                    color: AppColors.purple.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                        color: AppColors.purpleGlow.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    '⚡ Expert',
-                    style: TextStyle(
-                      color: AppColors.purpleGlow,
-                      fontSize: 9 * s,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                // ── Gems badge (replaces "Expert") ───────────────────────
+                progressionAsync.when(
+                  loading: () => _GemsBadge(gems: null, scale: s),
+                  error: (_, __) => _GemsBadge(gems: null, scale: s),
+                  data: (p) => _GemsBadge(gems: p.gems, scale: s),
                 ),
               ],
             ),
           ],
         ),
-        // XP + bell
+
+        // ── XP pill + bell ───────────────────────────────────────────────
         Row(
           children: [
             Container(
-              padding: EdgeInsets.symmetric(
-                  horizontal: 14 * s, vertical: 7 * s),
+              padding: EdgeInsets.symmetric(horizontal: 14 * s, vertical: 7 * s),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
                   colors: [AppColors.purple, AppColors.purpleLight],
@@ -242,12 +246,31 @@ class _HeaderRow extends StatelessWidget {
                 children: [
                   Icon(Icons.bolt, color: Colors.white, size: 14 * s),
                   SizedBox(width: 4 * s),
-                  Text(
-                    '1200',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 13 * s,
-                      fontWeight: FontWeight.w700,
+                  // Live XP
+                  progressionAsync.when(
+                    loading: () => Text(
+                      '—',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13 * s,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    error: (_, __) => Text(
+                      '—',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13 * s,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    data: (p) => Text(
+                      _formatXp(p.experience),
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 13 * s,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
@@ -260,8 +283,7 @@ class _HeaderRow extends StatelessWidget {
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.07),
                 shape: BoxShape.circle,
-                border:
-                    Border.all(color: Colors.white.withOpacity(0.12)),
+                border: Border.all(color: Colors.white.withOpacity(0.12)),
               ),
               child: Icon(Icons.notifications_outlined,
                   color: Colors.white, size: 18 * s),
@@ -269,6 +291,41 @@ class _HeaderRow extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  String _formatXp(int xp) {
+    // print(xp);
+    if (xp >= 1000) return '${(xp / 1000).toStringAsFixed(1)}k';
+    return xp.toString();
+  }
+}
+
+// ─── Gems badge ──────────────────────────────────────────────────────────────
+
+class _GemsBadge extends StatelessWidget {
+  final int? gems;  // null → loading/error state
+  final double scale;
+  const _GemsBadge({required this.gems, required this.scale});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = scale;
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8 * s, vertical: 2 * s),
+      decoration: BoxDecoration(
+        color: AppColors.purple.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.purpleGlow.withOpacity(0.3)),
+      ),
+      child: Text(
+        gems == null ? '💎 —' : '💎 $gems',
+        style: TextStyle(
+          color: const Color.fromARGB(255, 135, 132, 138),
+          fontSize: 9 * s,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
     );
   }
 }
