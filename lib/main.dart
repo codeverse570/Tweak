@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart' as legacy;  // ← alias to avoid clash
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:skillyr/features/battle/data/services/hive_storage.dart';
 import 'package:skillyr/features/battle/presentation/providers/battle_provider.dart';
 import 'package:skillyr/features/battle/presentation/screens/battle_screen.dart';
-
 import 'package:skillyr/features/home/presentation/screens/home_screen.dart';
-
 import 'package:skillyr/features/auth/presentation/providers/auth_provider.dart';
 import 'package:skillyr/features/auth/presentation/screens/auth_screen.dart';
 import 'package:skillyr/features/auth/data/services/supabase_auth_service.dart';
@@ -15,13 +14,18 @@ import 'package:skillyr/features/auth/data/services/supabase_auth_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Hive
   await HiveStorage.instance.init();
 
-  // Supabase
- await Supabase.initialize( url: 'https://bdapfofkohruzxjffgxw.supabase.co', publishableKey: 'sb_publishable_yX5fciAgov_15rUuhtfyYg_01pkO0a0', );
+  await Supabase.initialize(
+    url: 'https://bdapfofkohruzxjffgxw.supabase.co',
+       publishableKey: 'sb_publishable_yX5fciAgov_15rUuhtfyYg_01pkO0a0'
+  );
 
-  runApp(const SkillyrApp());
+  runApp(
+    const ProviderScope(
+      child: SkillyrApp(),
+    ),
+  );
 }
 
 class SkillyrApp extends StatelessWidget {
@@ -29,7 +33,7 @@ class SkillyrApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
+    return legacy.ChangeNotifierProvider(   // ← prefixed
       create: (_) => AuthProvider(
         SupabaseAuthService(
           webClientId:
@@ -56,14 +60,12 @@ class SkillyrApp extends StatelessWidget {
   }
 }
 
-/// Shows AuthScreen if user isn't logged in,
-/// otherwise goes to HomeScreen.
 class RootGate extends StatelessWidget {
   const RootGate({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
+    final auth = legacy.Provider.of<AuthProvider>(context);  // ← prefixed
 
     if (auth.isAuthenticated) {
       return const HomeScreen();
@@ -73,13 +75,12 @@ class RootGate extends StatelessWidget {
   }
 }
 
-/// Battle screen wrapper
 class BattleScreenWrapper extends StatelessWidget {
   const BattleScreenWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
+    return legacy.ChangeNotifierProvider(   // ← prefixed
       create: (_) => BattleProvider(),
       child: const BattleScreen(),
     );
